@@ -124,13 +124,25 @@ export default function StepImport({
                 </tr>
               </thead>
               <tbody>
-                {summary.preview.map((row, idx) => (
-                  <tr key={idx}>
-                    {summary.columns.map((c) => (
-                      <td key={c}>{row[c]}</td>
-                    ))}
-                  </tr>
-                ))}
+                {summary.preview.map((row, idx) => {
+                  let isInvalid = false;
+                  if (emailColumn) {
+                    const val = row[emailColumn]?.trim() || "";
+                    if (!val || !val.includes("@")) {
+                      isInvalid = true;
+                    }
+                  }
+                  return (
+                    <tr key={idx} style={{ background: isInvalid ? "rgba(255, 59, 48, 0.1)" : undefined }}>
+                      {summary.columns.map((c) => (
+                        <td key={c} style={{ color: isInvalid && c === emailColumn ? "var(--danger)" : undefined }}>
+                          {row[c]}
+                          {isInvalid && c === emailColumn && <span className="text-danger" style={{ fontSize: 12, marginLeft: 6 }}>(Invalid)</span>}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

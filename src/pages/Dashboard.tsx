@@ -43,12 +43,12 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="page-header">
+      <div className="page-header" style={{ borderBottom: "none", paddingBottom: 0, marginBottom: 12 }}>
         <div>
-          <h1 className="page-title">Dashboard</h1>
-          <p className="page-subtitle">Operational overview of local campaign activity</p>
+          <h1 className="page-title" style={{ fontSize: 28 }}>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}.</h1>
+          <p className="page-subtitle">Here is your local campaign activity.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate("/templates")}>
+        <button className="btn btn-primary" onClick={() => navigate("/templates")} style={{ padding: "0 20px", height: 36 }}>
           Manage Templates
         </button>
       </div>
@@ -89,15 +89,27 @@ export default function Dashboard() {
 
       {stats && (
         <>
-          <div className="grid grid-4" style={{ marginBottom: 24 }}>
-            <StatTile label="Total Campaigns" value={stats.totalCampaigns} />
-            <StatTile label="Total Sent" value={stats.totalSent} accent="success" />
-            <StatTile label="Total Failed" value={stats.totalFailed} accent="danger" />
-            <StatTile label="Interrupted" value={stats.interruptedCount} accent="warning" />
+          <div className="grid grid-4" style={{ marginBottom: 32, gap: 16 }}>
+            <div className="card card-pad" style={{ background: "linear-gradient(135deg, var(--bg-2) 0%, var(--bg-1) 100%)", borderTop: "3px solid var(--text-2)" }}>
+              <div style={{ color: "var(--text-2)", fontSize: 12, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.5px" }}>Total Campaigns</div>
+              <div style={{ fontSize: 32, fontWeight: 700, marginTop: 8 }}>{stats.totalCampaigns}</div>
+            </div>
+            <div className="card card-pad" style={{ background: "linear-gradient(135deg, var(--bg-2) 0%, var(--bg-1) 100%)", borderTop: "3px solid var(--success)" }}>
+              <div style={{ color: "var(--success)", fontSize: 12, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.5px" }}>Total Sent</div>
+              <div style={{ fontSize: 32, fontWeight: 700, marginTop: 8 }}>{stats.totalSent.toLocaleString()}</div>
+            </div>
+            <div className="card card-pad" style={{ background: "linear-gradient(135deg, var(--bg-2) 0%, var(--bg-1) 100%)", borderTop: "3px solid var(--danger)" }}>
+              <div style={{ color: "var(--danger)", fontSize: 12, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.5px" }}>Total Failed</div>
+              <div style={{ fontSize: 32, fontWeight: 700, marginTop: 8 }}>{stats.totalFailed.toLocaleString()}</div>
+            </div>
+            <div className="card card-pad" style={{ background: "linear-gradient(135deg, var(--bg-2) 0%, var(--bg-1) 100%)", borderTop: "3px solid var(--warning)" }}>
+              <div style={{ color: "var(--warning)", fontSize: 12, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.5px" }}>Interrupted</div>
+              <div style={{ fontSize: 32, fontWeight: 700, marginTop: 8 }}>{stats.interruptedCount}</div>
+            </div>
           </div>
 
           {stats.activeCampaign && (
-            <div className="card" style={{ marginBottom: 24 }}>
+            <div className="card" style={{ marginBottom: 32, border: "1px solid var(--accent-border)", boxShadow: "0 4px 20px var(--accent-bg)" }}>
               <div className="card-header">
                 <h3>Active Campaign</h3>
                 <StatusBadge status={stats.activeCampaign.status} />
@@ -125,11 +137,20 @@ export default function Dashboard() {
               <h3>Recent Campaigns</h3>
             </div>
             {stats.recentCampaigns.length === 0 ? (
-              <div className="empty-state">
-                <div className="icon">
-                  <IconEmpty size={26} />
+              <div className="empty-state" style={{ padding: "60px 20px" }}>
+                <div className="icon" style={{ marginBottom: 16 }}>
+                  <IconEmpty size={48} />
                 </div>
-                <div>No campaigns yet. Create your first one to get started.</div>
+                <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>No campaigns yet</div>
+                <div className="text-muted" style={{ marginBottom: 24, maxWidth: 300, margin: "0 auto 24px" }}>
+                  Create your first email campaign to start sending locally and safely.
+                </div>
+                <button className="btn btn-primary" onClick={() => {
+                  const btn = document.querySelector('.sidebar .btn-primary') as HTMLButtonElement;
+                  if (btn) btn.click();
+                }}>
+                  Create New Campaign
+                </button>
               </div>
             ) : (
               <table className="data-table">

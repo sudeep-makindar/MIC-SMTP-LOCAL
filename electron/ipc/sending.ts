@@ -19,10 +19,10 @@ function ensureWired(campaignId: string, getWindow: () => BrowserWindow | null) 
 }
 
 export function registerSendingHandlers(getWindow: () => BrowserWindow | null): void {
-  ipcMain.handle("sending:start", async (_e, campaignId: string) => {
+  ipcMain.handle("sending:start", async (_e, campaignId: string, options?: { testEmail?: string }) => {
     ensureWired(campaignId, getWindow);
     const engine = getEngine(campaignId);
-    void engine.runAutomatic();
+    void engine.runAutomatic(options);
     return { started: true };
   });
 

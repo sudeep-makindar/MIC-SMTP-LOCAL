@@ -81,6 +81,25 @@ export default function SendingScreen() {
   const remaining = progress?.remaining ?? total - sent - failedCount - skipped;
   const processed = sent + failedCount;
 
+  // Calculate ETA
+  let etaLabel = "N/A";
+  if (campaign.status === "sending" && remaining > 0) {
+    let avgSecondsPerEmail = 2; // rough network time
+    if (campaign.sendingMode === "automatic_interval" && campaign.intervalConfig) {
+      avgSecondsPerEmail += (campaign.intervalConfig.minSeconds + campaign.intervalConfig.maxSeconds) / 2;
+    } else if (campaign.sendingMode === "batch" && campaign.batchConfig) {
+      avgSecondsPerEmail += campaign.batchConfig.pauseSeconds / campaign.batchConfig.batchSize;
+    }
+    const remainingSeconds = remaining * avgSecondsPerEmail;
+    if (remainingSeconds < 60) {
+      etaLabel = `< 1 min`;
+    } else {
+      etaLabel = `~${Math.ceil(remainingSeconds / 60)} min`;
+    }
+  } else if (remaining === 0 && total > 0) {
+    etaLabel = "Done";
+  }
+
   async function start() {
     setBusy(true);
     await window.api.sending.start(id!);
@@ -136,11 +155,12 @@ export default function SendingScreen() {
         <StatusBadge status={campaign.status} />
       </div>
 
-      <div className="grid grid-4" style={{ marginBottom: 18 }}>
+      <div className="grid grid-5" style={{ marginBottom: 18 }}>
         <StatTile label="Total" value={total} />
         <StatTile label="Sent" value={sent} accent="success" />
         <StatTile label="Failed" value={failedCount} accent="danger" />
         <StatTile label="Remaining" value={remaining} accent="primary" />
+        <StatTile label="Est. Time" value={etaLabel} />
       </div>
 
       <div style={{ marginBottom: 22 }}>
@@ -189,15 +209,28 @@ export default function SendingScreen() {
           ) : (
             <div style={{ display: "flex", gap: 10 }}>
               {campaign.status === "paused" || campaign.status === "ready" || campaign.status === "interrupted" ? (
-                <button className="btn btn-primary" onClick={campaign.status === "ready" ? start : resume} disabled={busy}>
-                  {campaign.status === "ready" ? "Start Sending" : "Resume Sending"}
-                </button>
+                <>
+                  <button className="btn btn-primary" onClick={campaign.status === "ready" ? start : resume} disabled={busy}>
+                    {campaign.status === "ready" ? "Start Sending" : "Resume Sending"}
+                  </button>
+                  {campaign.status === "ready" && (
+                    <button className="btn" onClick={async () => {
+                      const email = window.prompt("Enter your email address to receive all emails in this run (Test Mode):");
+                      if (!email || !email.includes("@")) return;
+                      setBusy(true);
+                      await window.api.sending.start(id!, { testEmail: email.trim() });
+                      setBusy(false);
+                    }} disabled={busy}>
+                      Run as Test (Dry Run)
+                    </button>
+                  )}
+                </>
               ) : (
                 <button className="btn" onClick={pause}>
                   Pause
                 </button>
               )}
-              <button className="btn btn-danger" onClick={stop} disabled={campaign.status !== "sending"}>
+              <button className="btn btn-outline-danger" onClick={stop} disabled={campaign.status !== "sending"}>
                 Stop
               </button>
             </div>

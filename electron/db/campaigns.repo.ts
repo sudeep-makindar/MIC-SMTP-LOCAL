@@ -83,6 +83,32 @@ export function listCampaigns(): Campaign[] {
   return rows.map(rowToCampaign);
 }
 
+export function cloneCampaign(id: string): Campaign {
+  const original = getCampaign(id);
+  if (!original) throw new Error("Campaign not found");
+  const newId = uuid();
+  const now = new Date().toISOString();
+  const name = `${original.name} (Clone)`;
+  
+  const db = getDb();
+  db.prepare(
+    `INSERT INTO campaigns (
+      id, name, description, status, template_id, subject, recipient_file_name, 
+      column_mapping, placeholder_mapping, attachment_config, sending_mode, 
+      interval_config, batch_config, smtp_profile_id, cc_emails, bcc_emails, 
+      reply_to, created_at, updated_at
+    )
+    SELECT 
+      ?, ?, description, 'draft', template_id, subject, recipient_file_name, 
+      column_mapping, placeholder_mapping, attachment_config, sending_mode, 
+      interval_config, batch_config, smtp_profile_id, cc_emails, bcc_emails, 
+      reply_to, ?, ?
+    FROM campaigns WHERE id = ?`
+  ).run(newId, name, now, now, id);
+  
+  return getCampaign(newId)!;
+}
+
 export interface CampaignUpdate {
   name?: string;
   description?: string;

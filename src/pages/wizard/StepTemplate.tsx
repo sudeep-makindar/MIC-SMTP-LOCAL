@@ -68,7 +68,22 @@ export default function StepTemplate({
           onChange={(e) => setSubject(e.target.value)}
           placeholder="e.g. Your certificate for {{event_name}}"
         />
-        <div className="hint">Supports placeholders like {"{{name}}"} — mapped in a later step.</div>
+        {subject.includes("{{") ? (
+          <div className="hint" style={{ marginTop: 8, padding: "8px 12px", background: "var(--surface-0)", borderRadius: 6, border: "1px solid var(--border)" }}>
+            <strong>Preview:</strong> {
+              subject.replace(/\{\{\s*([^}]+)\s*\}\}/g, (match, p1) => {
+                const lower = p1.toLowerCase();
+                if (lower.includes("name")) return "John Doe";
+                if (lower.includes("event")) return "Annual Summit";
+                if (lower.includes("date")) return "Oct 24th";
+                if (lower.includes("company") || lower.includes("org")) return "Acme Corp";
+                return `[${p1}]`;
+              })
+            }
+          </div>
+        ) : (
+          <div className="hint">Supports placeholders like {"{{name}}"} — mapped in a later step.</div>
+        )}
       </div>
 
       <div className="divider" />

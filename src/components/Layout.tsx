@@ -1,10 +1,16 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { promptText } from "../lib/dialogStore";
 import { IconMark, IconDashboard, IconTemplates, IconLogs, IconSettings, IconPlus } from "./icons";
 
 export default function Layout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
 
   async function handleNewCampaign() {
     const name = await promptText({
@@ -56,6 +62,16 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
 
         <div className="sidebar-footer">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <span style={{ fontSize: 11, color: "var(--text-2)" }}>Theme</span>
+            <button 
+              className="btn btn-sm" 
+              style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text-1)" }}
+              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+            >
+              {theme === "light" ? "🌙 Dark" : "☀️ Light"}
+            </button>
+          </div>
           All campaign data stays on this machine.
           <br />
           Emails send via your configured SMTP provider.

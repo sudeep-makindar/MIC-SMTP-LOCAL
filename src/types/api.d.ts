@@ -69,6 +69,7 @@ export interface Api {
     list: () => Promise<Campaign[]>;
     get: (id: string) => Promise<Campaign | null>;
     create: (name: string, description: string) => Promise<Campaign>;
+    clone: (id: string) => Promise<Campaign>;
     update: (id: string, update: Partial<Campaign>) => Promise<Campaign>;
     delete: (id: string) => Promise<void>;
     listInterrupted: () => Promise<Campaign[]>;
@@ -137,7 +138,7 @@ export interface Api {
     run: (campaignId: string) => Promise<PreflightReport>;
   };
   sending: {
-    start: (campaignId: string) => Promise<{ started: boolean }>;
+    start: (campaignId: string, options?: { testEmail?: string }) => Promise<{ started: boolean }>;
     pause: (campaignId: string) => Promise<void>;
     stop: (campaignId: string) => Promise<void>;
     resume: (campaignId: string) => Promise<{ started: boolean }>;

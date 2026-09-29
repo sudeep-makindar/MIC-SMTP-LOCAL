@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import fs from "node:fs";
+import path from "node:path";
 import * as repo from "../db/campaigns.repo";
 import { listRecipients } from "../db/recipients.repo";
 import { campaignDir } from "../lib/paths";
@@ -13,6 +14,23 @@ export function registerCampaignHandlers(): void {
   ipcMain.handle("campaigns:create", (_e, name: string, description: string) => {
     const campaign = repo.createCampaign(name, description);
     fs.mkdirSync(campaignDir(campaign.id), { recursive: true });
+    return campaign;
+  });
+
+  ipcMain.handle("campaigns:clone", (_e, id: string) => {
+    const campaign = repo.cloneCampaign(id);
+    const newDir = campaignDir(campaign.id);
+    fs.mkdirSync(newDir, { recursive: true });
+    
+    // Copy input files and attachments so wizard has everything
+    const oldDir = campaignDir(id);
+    if (fs.existsSync(path.join(oldDir, "input"))) {
+      fs.cpSync(path.join(oldDir, "input"), path.join(newDir, "input"), { recursive: true });
+    }
+    if (fs.existsSync(path.join(oldDir, "attachments"))) {
+      fs.cpSync(path.join(oldDir, "attachments"), path.join(newDir, "attachments"), { recursive: true });
+    }
+    
     return campaign;
   });
 

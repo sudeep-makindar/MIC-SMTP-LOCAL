@@ -1,9 +1,10 @@
 :root {
-  /* True neutrals only — no blue/purple tint anywhere in the chrome. */
+  /* Dark mode (default) */
   --bg-0: #050505;
   --bg-1: #0b0b0b;
   --bg-2: #111111;
   --bg-3: #1a1a1a;
+  --surface-0: #1a1a1a;
   --bg-hover: #1c1c1c;
   --border: #262626;
   --border-soft: #191919;
@@ -14,13 +15,11 @@
   --text-2: #7d7d7d;
   --text-3: #4a4a4a;
 
-  /* Primary action = inverted monochrome, not a brand blue. */
   --accent: #f7f7f7;
   --accent-contrast: #0a0a0a;
   --accent-bg: rgba(247, 247, 247, 0.07);
   --accent-border: rgba(247, 247, 247, 0.28);
 
-  /* Functional color, used only as small dots/text — never large fills. */
   --success: #4bcf8a;
   --success-bg: rgba(75, 207, 138, 0.1);
   --warning: #dba75b;
@@ -33,6 +32,35 @@
   --radius-lg: 12px;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   --font-sans: -apple-system, "Segoe UI", "Inter", Roboto, sans-serif;
+}
+
+:root[data-theme="light"] {
+  --bg-0: #ffffff;
+  --bg-1: #f8f9fa;
+  --bg-2: #f1f3f5;
+  --bg-3: #e9ecef;
+  --surface-0: #ffffff;
+  --bg-hover: #e9ecef;
+  --border: #dee2e6;
+  --border-soft: #f1f3f5;
+  --border-strong: #ced4da;
+
+  --text-0: #212529;
+  --text-1: #495057;
+  --text-2: #868e96;
+  --text-3: #adb5bd;
+
+  --accent: #111827;
+  --accent-contrast: #ffffff;
+  --accent-bg: rgba(17, 24, 39, 0.05);
+  --accent-border: rgba(17, 24, 39, 0.2);
+
+  --success: #2b8a56;
+  --success-bg: rgba(43, 138, 86, 0.1);
+  --warning: #b07c34;
+  --warning-bg: rgba(176, 124, 52, 0.1);
+  --danger: #d94247;
+  --danger-bg: rgba(217, 66, 71, 0.1);
 }
 
 * {
@@ -278,13 +306,17 @@ label {
   font-size: 12.5px;
   font-weight: 550;
   cursor: pointer;
-  transition: border-color 0.12s ease, background 0.12s ease, opacity 0.12s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
 }
 
 .btn:hover:not(:disabled) {
   background: var(--bg-hover);
   border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .btn:disabled {

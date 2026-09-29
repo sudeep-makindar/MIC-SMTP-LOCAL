@@ -93,7 +93,7 @@ class CampaignSendingEngine extends EventEmitter {
     });
   }
 
-  private async sendOne(campaign: Campaign, recipient: Recipient, attemptNumber: number): Promise<void> {
+  private async sendOne(campaign: Campaign, recipient: Recipient, attemptNumber: number, testEmail?: string): Promise<void> {
     this.currentRecipientId = recipient.id;
     updateRecipient(recipient.id, { status: "sending" });
     this.emitProgress();
@@ -101,6 +101,13 @@ class CampaignSendingEngine extends EventEmitter {
     const template = campaign.templateId ? getTemplate(campaign.templateId) : null;
     const profile = campaign.smtpProfileId ? getSmtpProfile(campaign.smtpProfileId) : null;
     const rendered = renderRecipientEmail(campaign, template, profile, recipient);
+    
+    // Test mode override
+    if (testEmail) {
+      rendered.to = testEmail;
+      rendered.cc = [];
+      rendered.bcc = [];
+    }
 
     const nowIso = new Date().toISOString();
 
@@ -112,7 +119,7 @@ class CampaignSendingEngine extends EventEmitter {
         attempts: attemptNumber,
         lastAttemptAt: nowIso,
       });
-      this.logResult(campaign, recipient, "failed", `Missing values for: ${rendered.missingPlaceholders.join(", ")}`, "other", attemptNumber);
+      this.logResult(campaign, recipient, "failed", `Missing values for: ${rendered.missingPlaceholders.join(", ")}`, "other", attemptNumber, testEmail);
       return;
     }
 
@@ -125,48 +132,59 @@ class CampaignSendingEngine extends EventEmitter {
         attempts: attemptNumber,
         lastAttemptAt: nowIso,
       });
-      this.logResult(campaign, recipient, "failed", `Attachment not found: ${missingAttachment.name}`, "attachment_failure", attemptNumber);
+      this.logResult(campaign, recipient, "failed", `Attachment not found: ${missingAttachment.name}`, "attachment_failure", attemptNumber, testEmail);
       return;
     }
 
-    try {
-      const transport = this.ensureTransport();
-      const result = await sendMail(transport, {
-        from: rendered.from,
-        to: rendered.to,
-        cc: rendered.cc,
-        bcc: rendered.bcc,
-        replyTo: rendered.replyTo,
-        subject: rendered.subject,
-        html: rendered.html,
-        text: rendered.text,
-        attachments: rendered.attachments.map((a) => ({ filename: a.name, path: a.path })),
-      });
+    let lastErrorMsg = "Send failed";
+    let lastCategory: FailureCategory = "other";
 
-      if (result.ok) {
-        updateRecipient(recipient.id, { status: "sent", attempts: attemptNumber, lastAttemptAt: nowIso, sentAt: nowIso, errorReason: null });
-        this.logResult(campaign, recipient, "sent", null, null, attemptNumber);
-      } else {
-        updateRecipient(recipient.id, {
-          status: "failed",
-          errorReason: result.message ?? "Send failed",
-          failureCategory: result.category ?? "other",
-          attempts: attemptNumber,
-          lastAttemptAt: nowIso,
+    for (let retryAttempt = 1; retryAttempt <= 3; retryAttempt++) {
+      try {
+        const transport = this.ensureTransport();
+        const result = await sendMail(transport, {
+          from: rendered.from,
+          to: rendered.to,
+          cc: rendered.cc,
+          bcc: rendered.bcc,
+          replyTo: rendered.replyTo,
+          subject: rendered.subject,
+          html: rendered.html,
+          text: rendered.text,
+          attachments: rendered.attachments.map((a) => ({ filename: a.name, path: a.path })),
         });
-        this.logResult(campaign, recipient, "failed", result.message ?? "Send failed", result.category ?? "other", attemptNumber);
+
+        if (result.ok) {
+          updateRecipient(recipient.id, { status: "sent", attempts: attemptNumber, lastAttemptAt: nowIso, sentAt: nowIso, errorReason: null });
+          this.logResult(campaign, recipient, "sent", null, null, attemptNumber);
+          return;
+        } else {
+          lastErrorMsg = result.message ?? "Send failed";
+          lastCategory = result.category ?? "other";
+          if (isPermanentFailure(lastCategory)) break;
+        }
+      } catch (err) {
+        lastErrorMsg = err instanceof Error ? err.message : String(err);
+        lastCategory = "network_error";
+        this.closeTransport(); // Connection dropped, clear it so it re-init next attempt
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      updateRecipient(recipient.id, {
-        status: "failed",
-        errorReason: message,
-        failureCategory: "other",
-        attempts: attemptNumber,
-        lastAttemptAt: nowIso,
-      });
-      this.logResult(campaign, recipient, "failed", message, "other", attemptNumber);
+      
+      // If we reach here, it failed but is retryable. Sleep 2s before retry.
+      if (retryAttempt < 3 && (this.state as EngineState) === "running") {
+        this.emitProgress({ lastResult: { recipientId: recipient.id, email: recipient.email, status: "failed", reason: `Retrying (${retryAttempt}/3)... ${lastErrorMsg}` } });
+        await this.sleepInterruptible(2000);
+      }
     }
+
+    // Exhausted retries or hit permanent failure
+    updateRecipient(recipient.id, {
+      status: "failed",
+      errorReason: lastErrorMsg,
+      failureCategory: lastCategory,
+      attempts: attemptNumber,
+      lastAttemptAt: nowIso,
+    });
+    this.logResult(campaign, recipient, "failed", lastErrorMsg, lastCategory, attemptNumber);
   }
 
   private logResult(
@@ -175,7 +193,8 @@ class CampaignSendingEngine extends EventEmitter {
     status: "sent" | "failed",
     reason: string | null,
     category: FailureCategory | null,
-    attemptNumber: number
+    attemptNumber: number,
+    testEmail?: string
   ) {
     const template = campaign.templateId ? getTemplate(campaign.templateId) : null;
     const profile = campaign.smtpProfileId ? getSmtpProfile(campaign.smtpProfileId) : null;
@@ -199,7 +218,7 @@ class CampaignSendingEngine extends EventEmitter {
     });
   }
 
-  async runAutomatic(): Promise<void> {
+  async runAutomatic(options?: { testEmail?: string }): Promise<void> {
     this.state = "running";
     updateCampaign(this.campaignId, { status: "sending", startedAt: getCampaign(this.campaignId)!.startedAt ?? new Date().toISOString() });
     try {
@@ -211,7 +230,7 @@ class CampaignSendingEngine extends EventEmitter {
         const recipient = queue.shift()!;
         const existing = getRecipient(recipient.id);
         const attemptNumber = (existing?.attempts ?? 0) + 1;
-        await this.sendOne(getCampaign(this.campaignId)!, recipient, attemptNumber);
+        await this.sendOne(getCampaign(this.campaignId)!, recipient, attemptNumber, options?.testEmail);
         processedInBatch++;
 
         if ((this.state as EngineState) !== "running") break;

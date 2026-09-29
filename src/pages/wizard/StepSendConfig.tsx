@@ -65,49 +65,71 @@ export default function StepSendConfig({
       </div>
 
       {mode === "automatic_interval" && (
-        <div className="field-row" style={{ marginBottom: 14, maxWidth: 420 }}>
-          <div className="field">
-            <label>Min Interval (seconds)</label>
+        <div style={{ marginBottom: 24, maxWidth: 500, background: "var(--surface-0)", padding: 20, borderRadius: 8, border: "1px solid var(--border)" }}>
+          <h4 style={{ marginTop: 0, marginBottom: 16 }}>Delay Between Emails</h4>
+          <div className="field" style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+              <label style={{ margin: 0 }}>Minimum Delay: <strong>{interval.minSeconds}s</strong></label>
+            </div>
             <input
-              type="number"
+              type="range"
               min={1}
+              max={60}
               value={interval.minSeconds}
               onChange={(e) => setInterval_((c) => ({ ...c, minSeconds: Number(e.target.value) }))}
+              style={{ width: "100%", accentColor: "var(--accent)" }}
             />
           </div>
-          <div className="field">
-            <label>Max Interval (seconds)</label>
+          <div className="field" style={{ marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+              <label style={{ margin: 0 }}>Maximum Delay: <strong>{interval.maxSeconds}s</strong></label>
+            </div>
             <input
-              type="number"
+              type="range"
               min={1}
+              max={60}
               value={interval.maxSeconds}
               onChange={(e) => setInterval_((c) => ({ ...c, maxSeconds: Number(e.target.value) }))}
+              style={{ width: "100%", accentColor: "var(--accent)" }}
             />
           </div>
+          <p className="hint" style={{ marginTop: 12 }}>
+            To avoid spam filters, emails will be sent with a random delay between {interval.minSeconds} and {interval.maxSeconds} seconds.
+          </p>
         </div>
       )}
       {mode === "automatic_interval" && !intervalValid && (
-        <div className="banner banner-danger">Max interval must be greater than or equal to min interval, both at least 1 second.</div>
+        <div className="banner banner-danger" style={{ marginBottom: 20 }}>Max delay must be greater than or equal to min delay.</div>
       )}
 
       {mode === "batch" && (
-        <div className="field-row" style={{ marginBottom: 14, maxWidth: 420 }}>
-          <div className="field">
-            <label>Batch Size</label>
+        <div style={{ marginBottom: 24, maxWidth: 500, background: "var(--surface-0)", padding: 20, borderRadius: 8, border: "1px solid var(--border)" }}>
+          <h4 style={{ marginTop: 0, marginBottom: 16 }}>Batch Configuration</h4>
+          <div className="field" style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+              <label style={{ margin: 0 }}>Batch Size: <strong>{batch.batchSize} emails</strong></label>
+            </div>
             <input
-              type="number"
+              type="range"
               min={1}
+              max={500}
               value={batch.batchSize}
               onChange={(e) => setBatch((c) => ({ ...c, batchSize: Number(e.target.value) }))}
+              style={{ width: "100%", accentColor: "var(--accent)" }}
             />
           </div>
-          <div className="field">
-            <label>Pause Between Batches (seconds)</label>
+          <div className="field" style={{ marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+              <label style={{ margin: 0 }}>Pause Between Batches: <strong>{batch.pauseSeconds}s</strong></label>
+            </div>
             <input
-              type="number"
+              type="range"
               min={0}
+              max={600}
+              step={10}
               value={batch.pauseSeconds}
               onChange={(e) => setBatch((c) => ({ ...c, pauseSeconds: Number(e.target.value) }))}
+              style={{ width: "100%", accentColor: "var(--accent)" }}
             />
           </div>
         </div>

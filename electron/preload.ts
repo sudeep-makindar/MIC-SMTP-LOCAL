@@ -7,6 +7,7 @@ const api = {
     list: () => invoke("campaigns:list"),
     get: (id: string) => invoke("campaigns:get", id),
     create: (name: string, description: string) => invoke("campaigns:create", name, description),
+    clone: (id: string) => invoke("campaigns:clone", id),
     update: (id: string, update: unknown) => invoke("campaigns:update", id, update),
     delete: (id: string) => invoke("campaigns:delete", id),
     listInterrupted: () => invoke("campaigns:listInterrupted"),
@@ -55,7 +56,7 @@ const api = {
     run: (campaignId: string) => invoke("preflight:run", campaignId),
   },
   sending: {
-    start: (campaignId: string) => invoke("sending:start", campaignId),
+    start: (campaignId: string, options?: unknown) => invoke("sending:start", campaignId, options),
     pause: (campaignId: string) => invoke("sending:pause", campaignId),
     stop: (campaignId: string) => invoke("sending:stop", campaignId),
     resume: (campaignId: string) => invoke("sending:resume", campaignId),

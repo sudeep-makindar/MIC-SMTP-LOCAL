@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Campaign, PreflightReport } from "@shared/types";
 import Modal from "../../components/Modal";
+import EmailPreviewFrame from "../../components/EmailPreviewFrame";
 
 const EMAIL_RE = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 
@@ -39,6 +40,12 @@ export default function StepPreflight({
   const [senderDisplay, setSenderDisplay] = useState("—");
   const [pendingCount, setPendingCount] = useState(0);
 
+  // Live preview state
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewRecipients, setPreviewRecipients] = useState<import("@shared/types").Recipient[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [previewRendered, setPreviewRendered] = useState<import("@shared/types").RenderedEmail | null>(null);
+
   async function run() {
     setLoading(true);
     const [r, recipients] = await Promise.all([window.api.preflight.run(campaign.id), window.api.recipients.list(campaign.id)]);
@@ -48,6 +55,35 @@ export default function StepPreflight({
     // that can't know whether duplicates were kept or excluded.
     setPendingCount(recipients.filter((rec) => rec.status === "pending").length);
     setLoading(false);
+  }
+
+  async function openPreviews() {
+    setBusy(true);
+    const recipients = await window.api.recipients.list(campaign.id);
+    const pending = recipients.filter((r) => r.status === "pending");
+    // Pick up to 5 random recipients
+    const shuffled = pending.sort(() => 0.5 - Math.random()).slice(0, 5);
+    setPreviewRecipients(shuffled);
+    setPreviewIndex(0);
+    if (shuffled.length > 0) {
+      const rendered = await window.api.preview.renderRecipient(campaign.id, shuffled[0].id);
+      setPreviewRendered(rendered);
+      setShowPreviewModal(true);
+    } else {
+      window.alert("No pending recipients available to preview.");
+    }
+    setBusy(false);
+  }
+
+  async function loadPreview(index: number) {
+    if (index >= previewRecipients.length) {
+      setShowPreviewModal(false);
+      setReviewedPreviews(true);
+      return;
+    }
+    setPreviewIndex(index);
+    const rendered = await window.api.preview.renderRecipient(campaign.id, previewRecipients[index].id);
+    setPreviewRendered(rendered);
   }
 
   useEffect(() => {
@@ -232,12 +268,21 @@ export default function StepPreflight({
                 const done = isManual ? reviewedPreviews : auto;
                 return (
                   <label className="checklist-item" key={label} style={{ cursor: isManual ? "pointer" : "default" }}>
-                    {isManual ? (
-                      <input type="checkbox" checked={reviewedPreviews} onChange={(e) => setReviewedPreviews(e.target.checked)} />
-                    ) : (
-                      <span className={`check-dot ${done ? "passed" : "critical"}`}>{done ? "✓" : "✕"}</span>
-                    )}
+                    <span className={`check-dot ${done ? "passed" : "critical"}`}>{done ? "✓" : "✕"}</span>
                     <span>{label}</span>
+                    {isManual && (
+                      <button 
+                        className={`btn btn-sm ${done ? "btn-outline" : "btn-primary"}`} 
+                        style={{ marginLeft: "auto" }} 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          openPreviews();
+                        }}
+                        disabled={busy}
+                      >
+                        {done ? "Review Again" : "Live Previews"}
+                      </button>
+                    )}
                     {label === "Duplicate check completed" && report.summary.duplicates > 0 && (
                       <span className="text-muted" style={{ marginLeft: "auto", fontSize: 11.5 }}>
                         {duplicateDecision === "exclude" && "Excluded"}
@@ -358,6 +403,43 @@ export default function StepPreflight({
               <input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="Type SEND to confirm" style={{ marginTop: 8, width: "100%" }} />
             </div>
           )}
+        </Modal>
+      )}
+
+      {showPreviewModal && previewRendered && (
+        <Modal
+          title={`Live Preview (${previewIndex + 1} of ${previewRecipients.length})`}
+          onClose={() => {
+            setShowPreviewModal(false);
+            setReviewedPreviews(true);
+          }}
+          wide
+          footer={
+            <>
+              <button 
+                className="btn" 
+                onClick={() => {
+                  setShowPreviewModal(false);
+                  setReviewedPreviews(true);
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => loadPreview(previewIndex + 1)}
+              >
+                {previewIndex + 1 < previewRecipients.length ? "Next Preview →" : "Finish Review ✓"}
+              </button>
+            </>
+          }
+        >
+          <div style={{ marginBottom: 12 }}>
+            <strong>To:</strong> {previewRendered.to}
+            <br />
+            <strong>Subject:</strong> {previewRendered.subject}
+          </div>
+          <EmailPreviewFrame rendered={previewRendered} device="desktop" theme="light" />
         </Modal>
       )}
     </div>

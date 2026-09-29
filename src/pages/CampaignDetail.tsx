@@ -11,6 +11,7 @@ export default function CampaignDetail() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [filter, setFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
 
@@ -22,7 +23,14 @@ export default function CampaignDetail() {
 
   if (!campaign || !id) return <div className="text-muted">Loading…</div>;
 
-  const filtered = filter === "all" ? recipients : recipients.filter((r) => r.status === filter);
+  const filtered = recipients.filter((r) => {
+    if (filter !== "all" && r.status !== filter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!r.email.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
 
   async function exportResults(format: "csv" | "xlsx") {
     setExporting(true);
@@ -54,6 +62,15 @@ export default function CampaignDetail() {
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <StatusBadge status={campaign.status} />
+          <button 
+            className="btn btn-outline" 
+            onClick={async () => {
+              const clone = await window.api.campaigns.clone(id!);
+              navigate(`/campaigns/${clone.id}/wizard`);
+            }}
+          >
+            Clone Campaign
+          </button>
           {(campaign.status === "draft" || campaign.status === "ready" || campaign.status === "paused" || campaign.status === "interrupted") && (
             <button className="btn btn-primary" onClick={() => navigate(`/campaigns/${id}/wizard`)}>
               Continue Setup
@@ -78,6 +95,13 @@ export default function CampaignDetail() {
         <div className="card-header">
           <h3>Recipient Results</h3>
           <div style={{ display: "flex", gap: 8 }}>
+            <input 
+              type="text" 
+              placeholder="Search email..." 
+              value={searchQuery} 
+              onChange={(e) => setSearchQuery(e.target.value)} 
+              style={{ padding: "4px 8px", border: "1px solid var(--border)", borderRadius: 4, background: "var(--surface-0)", color: "var(--text-0)" }}
+            />
             <select value={filter} onChange={(e) => setFilter(e.target.value)}>
               <option value="all">All</option>
               <option value="sent">Sent</option>
@@ -86,6 +110,20 @@ export default function CampaignDetail() {
               <option value="excluded">Excluded</option>
               <option value="pending">Pending</option>
             </select>
+            {campaign.failedCount > 0 && (
+              <button 
+                className="btn btn-sm btn-outline" 
+                onClick={async () => {
+                  await window.api.sending.retryFailed(id!);
+                  const updated = await window.api.campaigns.get(id!);
+                  setCampaign(updated);
+                  const newRecipients = await window.api.recipients.list(id!);
+                  setRecipients(newRecipients);
+                }}
+              >
+                Retry Failed
+              </button>
+            )}
             <button className="btn btn-sm" disabled={exporting} onClick={() => exportResults("csv")}>
               Export CSV
             </button>

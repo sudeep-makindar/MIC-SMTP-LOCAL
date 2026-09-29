@@ -1057,3 +1057,28 @@ table.data-table {
   border: 1px solid var(--border);
 }
 
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+  .sidebar, .btn, .page-header button, .card-header select, .card-header input {
+    display: none !important;
+  }
+  .app-shell {
+    display: block;
+    height: auto;
+  }
+  .main-area {
+    padding: 0;
+    overflow: visible;
+  }
+  .card {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+  }
+  .data-table th, .data-table td {
+    border-color: #eee;
+  }
+}

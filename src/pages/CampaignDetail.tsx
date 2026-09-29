@@ -95,6 +95,9 @@ export default function CampaignDetail() {
         <div className="card-header">
           <h3>Recipient Results</h3>
           <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn btn-sm btn-outline" onClick={() => window.print()}>
+              Print PDF Report
+            </button>
             <input 
               type="text" 
               placeholder="Search email..." 

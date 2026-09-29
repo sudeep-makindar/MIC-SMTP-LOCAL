@@ -20,8 +20,14 @@ export function registerTemplateHandlers(): void {
   ipcMain.handle("templates:pickHtmlFile", async () => {
     const win = BrowserWindow.getFocusedWindow();
     const result = await dialog.showOpenDialog(win!, {
-      title: "Select HTML template file",
-      filters: [{ name: "HTML files", extensions: ["html", "htm"] }],
+      title: "Select HTML or HDB template file",
+      filters: [
+        { name: "Template files (*.hdb, *.html, *.htm, *.hbs)", extensions: ["hdb", "html", "htm", "hbs"] },
+        { name: "HTML files (*.html, *.htm)", extensions: ["html", "htm"] },
+        { name: "HDB files (*.hdb)", extensions: ["hdb"] },
+        { name: "Handlebars files (*.hbs)", extensions: ["hbs"] },
+        { name: "All files", extensions: ["*"] },
+      ],
       properties: ["openFile"],
     });
     return result.canceled ? null : result.filePaths[0];
@@ -31,10 +37,56 @@ export function registerTemplateHandlers(): void {
     const win = BrowserWindow.getFocusedWindow();
     const result = await dialog.showOpenDialog(win!, {
       title: "Select plain-text template file",
-      filters: [{ name: "Text files", extensions: ["txt"] }],
+      filters: [
+        { name: "Text files (*.txt)", extensions: ["txt"] },
+        { name: "All files", extensions: ["*"] },
+      ],
       properties: ["openFile"],
     });
     return result.canceled ? null : result.filePaths[0];
+  });
+
+  ipcMain.handle("templates:pickBulkFiles", async () => {
+    const win = BrowserWindow.getFocusedWindow();
+    const result = await dialog.showOpenDialog(win!, {
+      title: "Select template files to bulk import (HDB, HTML, HBS, TXT)",
+      filters: [
+        { name: "Template files (*.hdb, *.html, *.htm, *.hbs, *.txt)", extensions: ["hdb", "html", "htm", "hbs", "txt"] },
+        { name: "HDB files (*.hdb)", extensions: ["hdb"] },
+        { name: "HTML files (*.html, *.htm)", extensions: ["html", "htm"] },
+        { name: "Handlebars files (*.hbs)", extensions: ["hbs"] },
+        { name: "Text files (*.txt)", extensions: ["txt"] },
+        { name: "All files", extensions: ["*"] },
+      ],
+      properties: ["openFile", "multiSelections"],
+    });
+    return result.canceled ? [] : result.filePaths;
+  });
+
+  ipcMain.handle("templates:pickFolder", async () => {
+    const win = BrowserWindow.getFocusedWindow();
+    const result = await dialog.showOpenDialog(win!, {
+      title: "Select folder containing template files",
+      properties: ["openDirectory"],
+    });
+    if (result.canceled || !result.filePaths[0]) return [];
+    const folder = result.filePaths[0];
+    const allowed = new Set([".hdb", ".html", ".htm", ".hbs", ".txt"]);
+    const files: string[] = [];
+    try {
+      const entries = fs.readdirSync(folder, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isFile()) {
+          const ext = path.extname(entry.name).toLowerCase();
+          if (allowed.has(ext)) {
+            files.push(path.join(folder, entry.name));
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error reading directory for templates:", e);
+    }
+    return files;
   });
 
   ipcMain.handle("templates:pickAssetsFolder", async () => {
@@ -53,7 +105,8 @@ export function registerTemplateHandlers(): void {
       const dir = templateDir(id);
       ensureDir(dir);
 
-      const ext = params.type === "html" ? ".html" : ".txt";
+      const originalExt = path.extname(params.sourceFilePath);
+      const ext = originalExt ? originalExt : (params.type === "html" ? ".html" : ".txt");
       const destBodyPath = path.join(dir, `body${ext}`);
       fs.copyFileSync(params.sourceFilePath, destBodyPath);
 
@@ -67,7 +120,38 @@ export function registerTemplateHandlers(): void {
       const bodyText = fs.readFileSync(destBodyPath, "utf-8");
       const placeholders = detectPlaceholders(bodyText);
 
-      return repo.createTemplate(params.name, params.type, destBodyPath, assetsPath, placeholders);
+      return repo.createTemplate(params.name.trim(), params.type, destBodyPath, assetsPath, placeholders);
+    }
+  );
+
+  ipcMain.handle(
+    "templates:bulkImport",
+    (_e, items: Array<{ name: string; type: TemplateType; sourceFilePath: string; assetsFolderPath?: string | null }>) => {
+      const createdTemplates = [];
+      for (const item of items) {
+        const id = uuid();
+        const dir = templateDir(id);
+        ensureDir(dir);
+
+        const originalExt = path.extname(item.sourceFilePath);
+        const ext = originalExt ? originalExt : (item.type === "html" ? ".html" : ".txt");
+        const destBodyPath = path.join(dir, `body${ext}`);
+        fs.copyFileSync(item.sourceFilePath, destBodyPath);
+
+        let assetsPath: string | null = null;
+        if (item.assetsFolderPath && fs.existsSync(item.assetsFolderPath)) {
+          const destAssets = path.join(dir, "assets");
+          copyDirRecursive(item.assetsFolderPath, destAssets);
+          assetsPath = destAssets;
+        }
+
+        const bodyText = fs.readFileSync(destBodyPath, "utf-8");
+        const placeholders = detectPlaceholders(bodyText);
+
+        const created = repo.createTemplate(item.name.trim(), item.type, destBodyPath, assetsPath, placeholders);
+        createdTemplates.push(created);
+      }
+      return createdTemplates;
     }
   );
 

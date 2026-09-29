@@ -17,19 +17,28 @@ export function parseSpreadsheet(filePath: string): ParsedSpreadsheet {
 }
 
 function parseCsv(filePath: string): ParsedSpreadsheet {
-  const content = fs.readFileSync(filePath, "utf-8");
+  let content = fs.readFileSync(filePath, "utf-8");
+  if (content.charCodeAt(0) === 0xfeff) {
+    content = content.slice(1);
+  }
   const result = Papa.parse<Record<string, string>>(content, {
     header: true,
-    skipEmptyLines: true,
+    skipEmptyLines: "greedy",
     transformHeader: (h) => h.trim(),
+    delimitersToGuess: [",", "\t", "|", ";", Papa.RECORD_SEP, Papa.UNIT_SEP],
   });
   if (result.errors.length > 0) {
-    const fatal = result.errors.filter((e) => e.type !== "FieldMismatch");
-    if (fatal.length > 0) {
+    const fatal = result.errors.filter(
+      (e) => e.type !== "FieldMismatch" && e.code !== "UndetectableDelimiter"
+    );
+    if (fatal.length > 0 && (!result.data || result.data.length === 0)) {
       throw new Error(`CSV parse error: ${fatal[0].message}`);
     }
   }
-  const columns = result.meta.fields ?? [];
+  let columns = (result.meta.fields ?? []).map((c) => c.trim()).filter(Boolean);
+  if (columns.length === 0 && result.data && result.data.length > 0) {
+    columns = Object.keys(result.data[0]).map((c) => c.trim()).filter(Boolean);
+  }
   const rows = (result.data ?? []).map((row) => normalizeRow(row, columns));
   return { columns, rows };
 }

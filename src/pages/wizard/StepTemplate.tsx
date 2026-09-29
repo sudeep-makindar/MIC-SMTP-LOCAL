@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Campaign, Template } from "@shared/types";
+import { ImportTemplateModal } from "../Templates";
+import { IconUpload } from "../../components/icons";
 
 export default function StepTemplate({
   campaign,
@@ -16,9 +18,18 @@ export default function StepTemplate({
   const [name, setName] = useState(campaign.name);
   const [description, setDescription] = useState(campaign.description);
   const [saving, setSaving] = useState(false);
+  const [showImport, setShowImport] = useState<"bulk" | "single" | null>(null);
+
+  async function loadTemplates(selectNewest = false) {
+    const list = await window.api.templates.list();
+    setTemplates(list);
+    if (selectNewest && list.length > 0) {
+      setTemplateId(list[0].id);
+    }
+  }
 
   useEffect(() => {
-    window.api.templates.list().then(setTemplates);
+    loadTemplates();
   }, []);
 
   const canProceed = templateId && subject.trim() && name.trim();
@@ -62,10 +73,20 @@ export default function StepTemplate({
 
       <div className="divider" />
 
-      <h3>Select Template</h3>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <h3 style={{ margin: 0 }}>Select Template</h3>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn-sm" onClick={() => setShowImport("bulk")}>
+            <IconUpload size={12} /> Bulk Import…
+          </button>
+          <button className="btn btn-sm" onClick={() => setShowImport("single")}>
+            Import from File…
+          </button>
+        </div>
+      </div>
       {templates.length === 0 ? (
         <div className="banner banner-warning">
-          No templates available. Go to the Templates page to import an HTML or plain-text template first.
+          No templates available yet. Click <strong>Bulk Import…</strong> or <strong>Import from File…</strong> above to import your HDB or HTML templates.
         </div>
       ) : (
         <div className="grid grid-3">
@@ -101,6 +122,17 @@ export default function StepTemplate({
           {saving ? "Saving…" : "Continue →"}
         </button>
       </div>
+
+      {showImport && (
+        <ImportTemplateModal
+          initialMode={showImport}
+          onClose={() => setShowImport(null)}
+          onImported={() => {
+            setShowImport(null);
+            loadTemplates(true);
+          }}
+        />
+      )}
     </div>
   );
 }

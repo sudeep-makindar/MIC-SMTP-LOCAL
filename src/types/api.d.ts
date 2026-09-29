@@ -79,6 +79,8 @@ export interface Api {
     read: (id: string) => Promise<(Template & { body: string }) | null>;
     pickHtmlFile: () => Promise<string | null>;
     pickTextFile: () => Promise<string | null>;
+    pickBulkFiles: () => Promise<string[]>;
+    pickFolder: () => Promise<string[]>;
     pickAssetsFolder: () => Promise<string | null>;
     import: (params: {
       name: string;
@@ -86,6 +88,12 @@ export interface Api {
       sourceFilePath: string;
       assetsFolderPath: string | null;
     }) => Promise<Template>;
+    bulkImport: (items: Array<{
+      name: string;
+      type: TemplateType;
+      sourceFilePath: string;
+      assetsFolderPath?: string | null;
+    }>) => Promise<Template[]>;
     save: (params: { id: string | null; name: string; type: TemplateType; body: string }) => Promise<Template>;
     delete: (id: string) => Promise<void>;
   };

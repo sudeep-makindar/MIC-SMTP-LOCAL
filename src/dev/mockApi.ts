@@ -351,6 +351,14 @@ export function createMockApi(): Api {
       },
       pickHtmlFile: async () => "C:\\fake\\template.html",
       pickTextFile: async () => "C:\\fake\\template.txt",
+      pickBulkFiles: async () => [
+        "C:\\fake\\welcome_template.hdb",
+        "C:\\fake\\monthly_statement.hdb",
+      ],
+      pickFolder: async () => [
+        "C:\\fake\\folder\\newsletter.hdb",
+        "C:\\fake\\folder\\receipt.html",
+      ],
       pickAssetsFolder: async () => "C:\\fake\\assets",
       import: async (params) => {
         const t: Template = {
@@ -366,6 +374,25 @@ export function createMockApi(): Api {
         templates.push(t);
         templateBodies[t.id] = params.type === "html" ? "<p>Hello {{name}}, see you at {{event_name}}!</p>" : "Hello {{name}}, see you at {{event_name}}!";
         return t;
+      },
+      bulkImport: async (items) => {
+        const created: Template[] = [];
+        for (const item of items) {
+          const t: Template = {
+            id: uid(),
+            name: item.name,
+            type: item.type,
+            bodyPath: "mock://" + item.name,
+            assetsPath: item.assetsFolderPath ?? null,
+            placeholders: ["name", "event_name"],
+            createdAt: nowIso(),
+            updatedAt: nowIso(),
+          };
+          templates.push(t);
+          templateBodies[t.id] = item.type === "html" ? `<p>Hello {{name}}, welcome to ${item.name}!</p>` : `Hello {{name}}, welcome to ${item.name}!`;
+          created.push(t);
+        }
+        return created;
       },
       save: async (params) => {
         const detected = Array.from(new Set(Array.from(params.body.matchAll(/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g)).map((m) => m[1])));

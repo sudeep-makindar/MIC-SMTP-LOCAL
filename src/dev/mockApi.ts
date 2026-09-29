@@ -331,6 +331,26 @@ export function createMockApi(): Api {
         campaigns = campaigns.filter((c) => c.id !== id);
         delete recipients[id];
       },
+      clone: async (id) => {
+        const c = findCampaign(id);
+        const copy: Campaign = {
+          ...c,
+          id: uid(),
+          name: `${c.name} (Copy)`,
+          status: "draft",
+          createdAt: nowIso(),
+          updatedAt: nowIso(),
+          startedAt: null,
+          completedAt: null,
+          totalRecipients: 0,
+          sentCount: 0,
+          failedCount: 0,
+          skippedCount: 0,
+        };
+        campaigns.push(copy);
+        recipients[copy.id] = [];
+        return copy;
+      },
       listInterrupted: async () => [],
       recipientStats: async (id) => {
         const list = recipients[id] ?? [];
